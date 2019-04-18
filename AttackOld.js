@@ -18,7 +18,7 @@ var Attack = {
 
 		if (Config.AttackSkill[1] < 0 || Config.AttackSkill[3] < 0) {
 			showConsole();
-			print("ÿc1Bad attack config. Don't expect your bot to attack.");
+			print("Ã¿c1Bad attack config. Don't expect your bot to attack.");
 		}
 
 		if (me.gametype === 1) {
@@ -425,7 +425,7 @@ var Attack = {
 
 					// Skip non-unique monsters after 15 attacks, except in Throne of Destruction
 					if (me.area !== 131 && !(target.spectype & 0x7) && gidAttack[i].attacks > 15) {
-						print("ÿc1Skipping " + target.name + " " + target.gid + " " + gidAttack[i].attacks);
+						print("Ã¿c1Skipping " + target.name + " " + target.gid + " " + gidAttack[i].attacks);
 						monsterList.shift();
 					}
 
@@ -438,6 +438,7 @@ var Attack = {
 			} else {
 				monsterList.shift();
 			}
+			delay(5);
 		}
 
 		ClassAttack.afterAttack(pickit);
@@ -579,7 +580,7 @@ var Attack = {
 
 					// Skip non-unique monsters after 15 attacks, except in Throne of Destruction
 					if (me.area !== 131 && !(target.spectype & 0x7) && gidAttack[i].attacks > 15) {
-						print("ÿc1Skipping " + target.name + " " + target.gid + " " + gidAttack[i].attacks);
+						print("Ã¿c1Skipping " + target.name + " " + target.gid + " " + gidAttack[i].attacks);
 						monsterList.shift();
 					}
 
@@ -730,13 +731,13 @@ var Attack = {
 	},
 
 	// Clear an entire area based on monster spectype
-	clearLevel: function (spectype) {
+	clearLevel: function (spectype, clearFast) {
 		if (Config.MFLeader) {
 			Pather.makePortal();
 			say("clearlevel " + getArea().name);
 		}
 
-		var room, result, rooms, myRoom;
+		var room, result, rooms, myRoom, isSorted;
 
 		function RoomSort(a, b) {
 			return getDistance(myRoom[0], myRoom[1], a[0], a[1]) - getDistance(myRoom[0], myRoom[1], b[0], b[1]);
@@ -756,7 +757,12 @@ var Attack = {
 
 		do {
 			rooms.push([room.x * 5 + room.xsize / 2, room.y * 5 + room.ysize / 2]);
+			//delay(1);
 		} while (room.getNext());
+		
+		if (clearFast === undefined) {
+			clearFast = isSorted = 0;
+		}
 
 		while (rooms.length > 0) {
 			// get the first room + initialize myRoom var
@@ -772,7 +778,14 @@ var Attack = {
 				}
 			}
 
-			rooms.sort(RoomSort);
+			if (clearFast == 0) {
+				rooms.sort(RoomSort);
+			} else {
+				if (isSorted == 0) {
+					rooms.sort(RoomSort);
+					isSorted = 1;
+				}
+			}
 			room = rooms.shift();
 
 			result = Pather.getNearestWalkable(room[0], room[1], 18, 3);
@@ -1434,7 +1447,7 @@ AuraLoop: // Skip monsters with auras
 				}
 			}
 
-			//print("ÿc9potential spots: ÿc2" + coords.length);
+			//print("Ã¿c9potential spots: Ã¿c2" + coords.length);
 
 			if (coords.length > 0) {
 				coords.sort(Sort.units);
@@ -1442,7 +1455,7 @@ AuraLoop: // Skip monsters with auras
 				for (i = 0; i < coords.length; i += 1) {
 					// Valid position found
 					if (!CollMap.checkColl({x: coords[i].x, y: coords[i].y}, unit, coll, 1)) {
-						//print("ÿc9optimal pos build time: ÿc2" + (getTickCount() - t) + " ÿc9distance from target: ÿc2" + getDistance(cx, cy, unit.x, unit.y));
+						//print("Ã¿c9optimal pos build time: Ã¿c2" + (getTickCount() - t) + " Ã¿c9distance from target: Ã¿c2" + getDistance(cx, cy, unit.x, unit.y));
 
 						switch (walk) {
 						case 1:
@@ -1470,7 +1483,7 @@ AuraLoop: // Skip monsters with auras
 		}
 
 		if (name) {
-			print("ÿc4Attackÿc0: No valid positions for: " + name);
+			print("Ã¿c4AttackÃ¿c0: No valid positions for: " + name);
 		}
 
 		return false;
