@@ -1,5 +1,6 @@
 placeTraps: function (unit, amount) {
         var i, j,
+            spreadx = 0,
             traps = 0;
 
         this.lastTrapPos = {x: unit.x, y: unit.y};
@@ -23,7 +24,8 @@ placeTraps: function (unit, amount) {
                             return true;
                         }
 
-                        Skill.cast(Config.Traps[traps], 0, unit.x + i + 10, unit.y + j);
+                        Skill.cast(Config.Traps[traps], 0, unit.x + spreadx, unit.y + j);
+                        spreadx = spreadx + 10
                     }
 
                     traps += 1;
