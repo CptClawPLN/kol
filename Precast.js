@@ -1,6 +1,6 @@
 /**
 *	@filename	Precast.js
-*	@author		noah-, kolton
+*	@author		D3STROY3R, kolton
 *	@desc		handle player prebuff sequence
 */
 
@@ -11,17 +11,25 @@ var Precast = new function () {
 	this.ESTick = 0;
 	this.BODuration = 0;
 	this.BOTick = 0;
-	this.bestSlot = {};
+
 
 	this.weaponSwitch = function (slot) {
-		if (me.gametype === 0 || me.weaponswitch === slot) {
+		if (me.gametype === 0) {
 			return true;
+		}
+
+		if (slot === -1) {
+			this.BOSwitch();
+
+			slot = this.haveCTA;
 		}
 
 		var i, tick;
 
 		if (slot === undefined) {
-			slot = me.weaponswitch ^ 1;
+			slot = me.weaponswitch === 0 ? 1 : 0;
+		} else if (me.weaponswitch === slot) {
+			return true;
 		}
 
 		delay(500);
@@ -44,8 +52,14 @@ var Precast = new function () {
 
 		return false;
 	};
-	
-	this.precastMEMORY = function (force) 
+
+	if (me.getState(9)) {
+		this.weaponSwitch();
+			delay(3500);
+		this.weaponSwitch();
+		}
+
+this.precastMEMORY = function (force) 
 	{
 		if (!force && me.getState(30)) 
 		{
@@ -64,7 +78,7 @@ var Precast = new function () {
 			this.weaponSwitch(this.haveMEMORY);
 			Skill.cast(58, 0); // Energy Shield
 			delay(10);
-			Skill.cast(60, 0); // Chilling Armor
+			Skill.cast(50, 0); // Shiver Armor
 			delay(250);
 			this.weaponSwitch(slot);
 			delay(250);
@@ -78,33 +92,24 @@ var Precast = new function () {
 		return false;
 	};
 
-	this.precastCTA = function (force) 
-	{
-		if (!force && me.getState(32)) 
-		{
+	this.precastCTA = function (force) {
+		if (!force && me.getState(32)) {
 			return true;
 		}
 
-		if (me.gametype === 0 || me.classid === 4 || me.inTown) 
-		{
+		if (me.gametype === 0 || me.classid === 4 || me.inTown) {
 			return false;
 		}
 
-		if (this.checkCTA()) 
-		{
-			var slot = me.weaponswitch;
-
-			this.weaponSwitch(this.haveCTA);
+		if (this.BOSwitch()) {
 			Skill.cast(155, 0); // Battle Command
-			delay(10);
 			Skill.cast(149, 0); // Battle Orders
-			delay(250);
-			this.weaponSwitch(slot);
-			delay(250);
+
 			this.BODuration = (20 + me.getSkill(149, 1) * 10 + (me.getSkill(138, 0) + me.getSkill(155, 0)) * 5) * 1000;
 			this.BOTick = getTickCount();
-			delay(10);
-			
+
+			this.weaponSwitch(Math.abs(this.haveCTA - 1));
+
 			return true;
 		}
 
@@ -112,37 +117,27 @@ var Precast = new function () {
 	};
 
 	this.getBetterSlot = function (skillId) {
-		if (this.bestSlot[skillId] !== undefined) {
-			return this.bestSlot[skillId];
-		}
-
 		var item, classid, skillTab,
 			sumCurr = 0,
 			sumSwap = 0;
 
 		switch (skillId) {
+		case 40: // Frigerate
+		case 50: // Shiver Armor
+		case 60: // Chilling Armor		
+			classid = 1;
+			skillTab = 10;
+
+			break;
 		case 52: // Enchant
 			classid = 1;
 			skillTab = 8;
 
 			break;
-		case 47: // Fireball - Check that we are back on our main skill swap.
-		case 56: // Meteor - Double Check
-			classid = 1;
-			skillTab = 8;
-			
-			break;
-		case 59: // Blizzard - Check that we are back on our main skill swap.
-		case 55: // Glacial Spike - Double Check
-			classid = 1;
-			skillTab = 10;
-			
-			break;
-		case 49: // Lightning - Check that we are back on our main skill swap.
-		case 53: // Chain Lightning - Double Check
+		case 58: // Energy Shield
 			classid = 1;
 			skillTab = 9;
-			
+
 			break;
 		case 68: // Bone Armor
 			classid = 2;
@@ -168,6 +163,7 @@ var Precast = new function () {
 			break;
 		case 258: // Burst of Speed
 		case 267: // Fade
+		case 278: // Venom
 			classid = 6;
 			skillTab = 49;
 
@@ -180,7 +176,7 @@ var Precast = new function () {
 		default:
 			return me.weaponswitch;
 		}
-
+    
 		item = me.getItem();
 
 		if (item) {
@@ -195,16 +191,23 @@ var Precast = new function () {
 			} while (item.getNext());
 		}
 
-		this.bestSlot[skillId] = (sumSwap > sumCurr) ? me.weaponswitch ^ 1 : me.weaponswitch;
-		return this.bestSlot[skillId];
+		return sumSwap > sumCurr ? Math.abs(me.weaponswitch - 1) : me.weaponswitch;
 	};
 
 	this.precastSkill = function (skillId) {
-		var swap = me.weaponswitch;
+		var swapped,
+			slot = this.getBetterSlot(skillId);
 
-		this.weaponSwitch(this.getBetterSlot(skillId));
+		if (slot !== me.weaponswitch) {
+			swapped = true;
+		}
+
+		this.weaponSwitch(slot);
 		Skill.cast(skillId, 0);
-		this.weaponSwitch(swap);
+
+		if (swapped) {
+			this.weaponSwitch(Math.abs(slot - 1));
+		}
 
 		return true;
 	};
@@ -214,9 +217,6 @@ var Precast = new function () {
 
 		// Force BO 15 seconds before it expires
 		this.precastCTA(!me.getState(32) || force || (getTickCount() - this.BOTick >= this.BODuration - 15000));
-		
-		// Force ES 15 seconds before it expires
-		this.precastMEMORY(!me.getState(30) || force || (getTickCount() - this.ESTick >= this.ESDuration - 15000));
 
 		switch (me.classid) {
 		case 0: // Amazon
@@ -226,10 +226,6 @@ var Precast = new function () {
 
 			break;
 		case 1: // Sorceress
-			if (me.getSkill(57, 0) && (!me.getState(38) || force)) {
-				this.precastSkill(57); // Thunder Storm
-			}
-
 			if (me.getSkill(58, 0) && (!me.getState(30) || force)) {
 				this.precastSkill(58); // Energy Shield
 			}
@@ -242,14 +238,14 @@ var Precast = new function () {
 				if (!me.getState(20) || force) {
 					this.precastSkill(60); // Chilling Armor
 				}
-			} else if (me.getSkill(40, 0)) {
-				if (!me.getState(10) || force) {
-					this.precastSkill(40); // Frozen Armor
-				}
 			}
 
 			if (me.getSkill(52, 0) && (!me.getState(16) || force)) {
 				this.enchant();
+			}
+
+			if (me.getSkill(40, 0) && (!me.getState(215) || force)) {
+				this.frigerate();
 			}
 
 			break;
@@ -285,23 +281,17 @@ var Precast = new function () {
 			break;
 		case 4: // Barbarian - TODO: BO duration
 			if (!me.getState(32) || !me.getState(51) || !me.getState(26) || force) {
-				var swap = me.weaponswitch;
-
-				this.weaponSwitch(this.getBetterSlot(149));
-
 				if (!me.getState(51) || force) {
-					Skill.cast(155, 0); // Battle Command
+					this.precastSkill(155); // Battle Command
 				}
 
 				if (!me.getState(32) || force) {
-					Skill.cast(149, 0); // Battle Orders
+					this.precastSkill(149); // Battle Orders
 				}
 
 				if (!me.getState(26) || force) {
-					Skill.cast(138, 0); // Shout
+					this.precastSkill(138); // Shout
 				}
-
-				this.weaponSwitch(swap);
 			}
 
 			break;
@@ -372,16 +362,8 @@ var Precast = new function () {
 				Skill.cast(250, 0); // Hurricane
 			}
 
-			if (Config.SummonSpirit === 1 && me.getSkill(226, 1) && (!me.getState(149) || force)) {
+			if (me.getSkill(226, 1) && (!me.getState(149) || force)) {
 				Skill.cast(226, 0); // Oak Sage
-			}
-
-			if (Config.SummonSpirit === 2 && me.getSkill(236, 1) && (!me.getState(148) || force)) {
-				Skill.cast(236, 0); // Heart of Wolverine
-			}
-
-			if (Config.SummonSpirit === 3 && me.getSkill(246, 1) && (!me.getState(147) || force)) {
-				Skill.cast(246, 0); // Spirit of Barbs
 			}
 
 			if (buffSummons) {
@@ -395,11 +377,11 @@ var Precast = new function () {
 			}
 
 			if (me.getSkill(278, 0) && Config.UseVenom && (!me.getState(31) || force)) {
-				Skill.cast(278, 0); // Venom
+				this.precastSkill(278, 0); // Venom
 			}
 
-			if (me.getSkill(277, 0) && (!me.getState(158) || force)) {
-				this.precastSkill(277); // Blade Shield
+			if (me.getSkill(277, 0) && Config.UseBladeShield && (!me.getState(243) || force)) {
+				this.precastSkill(277); // Blade Shield	
 			}
 
 			if (me.getSkill(258, 0) && !Config.UseFade && Config.UseBoS && (!me.getState(157) || force)) {
@@ -421,37 +403,40 @@ var Precast = new function () {
 		}
 	};
 
-	this.checkCTA = function () {
+	this.BOSwitch = function () {
 		var item;
 
-		if (this.haveCTA > -1) {
-			return true;
+		if (this.haveCTA < 0) {
+			item = me.getItem(-1, 1);
+
+			if (item) {
+MainLoop:
+				do {
+					if (item.getPrefix(20519)) { // Call to Arms
+						switch (item.bodylocation) {
+						case 4:
+						case 5:
+							this.haveCTA = me.weaponswitch;
+
+							break MainLoop;
+						case 11:
+						case 12:
+							this.haveCTA = Math.abs(me.weaponswitch - 1);
+
+							break MainLoop;
+						}
+					}
+				} while (item.getNext());
+			}
 		}
 
-		item = me.getItem(-1, 1);
-
-		if (item) {
-			do {
-				if (item.getPrefix(20519)) { // Call to Arms
-					switch (item.bodylocation) {
-					case 4:
-					case 5:
-						this.haveCTA = me.weaponswitch;
-
-						return true;
-					case 11:
-					case 12:
-						this.haveCTA = me.weaponswitch ^ 1;
-
-						return true;
-					}
-				}
-			} while (item.getNext());
+		if (this.haveCTA > -1) {
+			return this.weaponSwitch(this.haveCTA);
 		}
 
 		return false;
 	};
-	
+
 	this.checkMEMORY = function () {
 		var item;
 
@@ -551,9 +536,15 @@ var Precast = new function () {
 	};
 
 	this.enchant = function () {
-		var unit, slot = me.weaponswitch, chanted = [];
+		var unit, swapped,
+			slot = this.getBetterSlot(52),
+			chanted = [];
 
-		this.weaponSwitch(this.getBetterSlot(52));
+		if (slot !== me.weaponswitch) {
+			swapped = true;
+		}
+
+		this.weaponSwitch(slot);
 
 		// Player
 		unit = getUnit(0);
@@ -578,7 +569,50 @@ var Precast = new function () {
 			} while (unit.getNext());
 		}
 
+		if (swapped) {
+			this.weaponSwitch(Math.abs(slot - 1));
+		}
+
+		return true;
+	};
+
+	this.frigerate = function () {
+		var unit, swapped,
+			slot = this.getBetterSlot(40),
+			chanted = [];
+
+		if (slot !== me.weaponswitch) {
+			swapped = true;
+		}
+
 		this.weaponSwitch(slot);
+
+		// Player
+		unit = getUnit(0);
+
+		if (unit) {
+			do {
+				if (!unit.dead && Misc.inMyParty(unit.name) && getDistance(me, unit) <= 40) {
+					Skill.cast(40, 0, unit);
+					chanted.push(unit.name);
+				}
+			} while (unit.getNext());
+		}
+
+		// Minion
+		unit = getUnit(1);
+
+		if (unit) {
+			do {
+				if (unit.getParent() && chanted.indexOf(unit.getParent().name) > -1 && getDistance(me, unit) <= 40) {
+					Skill.cast(40, 0, unit);
+				}
+			} while (unit.getNext());
+		}
+
+		if (swapped) {
+			this.weaponSwitch(Math.abs(slot - 1));
+		}
 
 		return true;
 	};
